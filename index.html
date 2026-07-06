@@ -204,6 +204,8 @@
     min-height: 34px;
     text-shadow: 0 2px 8px rgba(0,0,0,0.35);
     transition: opacity 0.3s ease, transform 0.3s ease;
+    overflow: hidden;
+    padding: 4px 0;
   }
 
   .music-bars {
@@ -228,6 +230,21 @@
     0%, 100% { height: 8px; }
     50%      { height: 26px; }
   }
+
+  #restartBtn {
+    margin-top: 24px;
+    background: linear-gradient(135deg, #ff2d78, #ff5fa2);
+    color: #fff;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 30px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(255,45,120,0.6);
+    animation: cardPop 0.5s ease;
+  }
+  #restartBtn:hover { transform: scale(1.06); }
 </style>
 </head>
 <body>
@@ -251,12 +268,8 @@
   <div class="music-bars">
     <span></span><span></span><span></span><span></span><span></span>
   </div>
-  <!--
-    ⚠️ YAHAN APNA GAANA DAALNA HAI:
-    1. Apni song file ka naam "song.mp3" rakho aur isi folder me daalo jaha ye HTML file hai
-    2. Agar naam alag rakhna hai to niche src="song.mp3" ko apne filename se replace kar do
-  -->
-  <audio id="songAudio" src="song.mp3"></audio>
+  <!-- song removed - sirf lyrics dikhengi -->
+  <button id="restartBtn" style="display:none;">Repeat 🔁</button>
 </div>
 
 <script>
@@ -338,54 +351,79 @@ yesBtn.addEventListener('click', () => {
   Apna gaana sunke exact second note kar lo aur neeche edit kar do.
 */
 const lyrics = [
-  { time: 0,  text: "Wait for magic..." },
-  { time: 5,  text: "हमरा से पहले ना हमरा से केहु बाद 💖" },
-  { time: 12, text: "हमके बनाला बॉडीगॉर्ड ब्यूटी बनल रही 😍" },
-  { time: 20, text: "यहाँ अपनी अगली लाइन डालो" },
-  { time: 28, text: "यहाँ अपनी अगली लाइन डालो" }
+  { time: 0,   text: "हो गोरी संच हु तू 💖" },
+  { time: 3,   text: "जन्नत के हूर लागेलु ✨" },
+  { time: 6,   text: "गोरी संच हु तू 💖" },
+  { time: 9,   text: "जन्नत के हूर लागेलु ✨" },
+  { time: 12,  text: "सोना चनी नहीं हीरा कोहिनूर लागेलु 💎" },
+  { time: 15,  text: "सोना चनी नहीं हीरा कोहिनूर लागेलु 💎" }
 ];
+const LINE_DURATION = 3; // har line 3 second dikhegi
 
-const audio = document.getElementById('songAudio');
 const lyricLine = document.getElementById('lyricLine');
+const restartBtn = document.getElementById('restartBtn');
+let demoInterval = null;
 
 function startSong() {
-  audio.play().then(() => {
-    // song mil gaya, real timeupdate se lyrics chalengi
-  }).catch(() => {
-    // song.mp3 nahi mili -> DEMO MODE: timer se lyrics preview chalao
-    runDemoLyrics();
-  });
+  restartBtn.style.display = 'none';
+  runDemoLyrics();
 }
 
-audio.addEventListener('timeupdate', () => {
-  updateLyricText(audio.currentTime);
-});
+let currentLyricIndex = -1;
 
 function updateLyricText(t) {
-  let current = lyrics[0].text;
+  let idx = 0;
   for (let i = 0; i < lyrics.length; i++) {
-    if (t >= lyrics[i].time) current = lyrics[i].text;
+    if (t >= lyrics[i].time) idx = i;
   }
-  if (lyricLine.textContent !== current) {
+
+  if (idx !== currentLyricIndex) {
+    currentLyricIndex = idx;
+
+    // purani line upar slide ho ke fade out
+    lyricLine.style.transition = 'transform 0.35s ease, opacity 0.35s ease';
+    lyricLine.style.transform = 'translateY(-18px)';
     lyricLine.style.opacity = 0;
-    lyricLine.style.transform = 'translateY(6px)';
+
     setTimeout(() => {
-      lyricLine.textContent = current;
-      lyricLine.style.opacity = 1;
-      lyricLine.style.transform = 'translateY(0)';
-    }, 250);
+      lyricLine.textContent = lyrics[idx].text;
+      lyricLine.style.transform = 'translateY(18px)';
+      requestAnimationFrame(() => {
+        // nayi line niche se upar slide ho ke aayegi
+        lyricLine.style.transform = 'translateY(0)';
+        lyricLine.style.opacity = 1;
+      });
+    }, 350);
   }
 }
 
-/* DEMO MODE: song.mp3 na ho tab bhi preview dikhane ke liye fake clock chalate hain */
+/* DEMO MODE: timer se lyrics chalate hain, end hone par restart button dikhate hain */
 function runDemoLyrics() {
   let demoTime = 0;
+  currentLyricIndex = -1;
   updateLyricText(demoTime);
-  setInterval(() => {
+
+  const lastLineEnd = lyrics[lyrics.length - 1].time + LINE_DURATION;
+
+  demoInterval = setInterval(() => {
     demoTime += 1;
     updateLyricText(demoTime);
+
+    if (demoTime >= lastLineEnd) {
+      clearInterval(demoInterval);
+      // sab lyrics khatam hone ke 7 sec baad restart button dikhao
+      setTimeout(() => {
+        restartBtn.style.display = 'inline-block';
+      }, 7000);
+    }
   }, 1000);
 }
+
+restartBtn.addEventListener('click', () => {
+  restartBtn.style.display = 'none';
+  songScreen.style.display = 'none';
+  questionScreen.style.display = 'block';
+});
 </script>
 
 </body>
