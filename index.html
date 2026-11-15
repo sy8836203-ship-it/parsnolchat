@@ -105,8 +105,9 @@ form button:not(.send){border:0;background:none;font-size:22px;padding:4px;color
   <input type="file" id="fl" accept="image/*,video/*" hidden>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="supabase.js"></script>
 <script>
+if(!window.supabase){document.getElementById('err').textContent='App ki file load nahi hui. supabase.js upload check karo ya page refresh karo.';throw new Error('supabase.js missing')}
 const SUPABASE_URL='https://hoxkqtuheevixytvplqs.supabase.co';
 const SUPABASE_KEY='sb_publishable_Z06lWT4-c6MBlM0kHdiiEQ_ZvGsbVeg';
 const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
@@ -323,5 +324,4 @@ $('f').onsubmit=async e=>{
 
 
 async function shrink(f){
-  const bmp=await createImageBitmap(f),k=Math.min(1,1280/Math.max(bmp.width,bmp.height));
-  const c=document.createElement('canvas');c.width=Math.round(bmp.width*k);c.height=Math.round(
+  const bmp=await createImageBitmap(f),k=Math.min(1,1280/Math.max(b
