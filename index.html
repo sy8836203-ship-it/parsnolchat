@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ff4d8d">
+<title>Humara Chat 💕</title>
+<style>
+:root{--bg:#fff7fa;--card:#fff;--me:#ff4d8d;--her:#fff;--herT:#2a1a22;--mut:#8a7480;--line:#f3dce5}
+@media(prefers-color-scheme:dark){:root{--bg:#150d12;--card:#22141c;--her:#2c1b25;--herT:#f6e9ef;--mut:#a58a97;--line:#33202a}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--herT);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;overflow:hidden}
+.hide{display:none!important}
+#login{margin:auto;width:min(92%,360px);background:var(--card);border:1px solid var(--line);border-radius:20px;padding:26px;text-align:center}
+#login h1{margin:0 0 4px;font-size:24px}#login p{margin:0 0 16px;color:var(--mut);font-size:14px}
+#login input{width:100%;margin-bottom:10px}
+#login button{width:100%;border:0;background:var(--me);color:#fff;padding:12px;border-radius:22px;font-size:16px;font-weight:600}
+#err{color:#e03131;font-size:13px;min-height:18px;margin-top:8px}
+input{border:1px solid var(--line);background:var(--bg);color:var(--herT);border-radius:22px;padding:11px 16px;font-size:16px;outline:none}
+header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border-bottom:1px solid var(--line)}
+.av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#ff4d8d,#ffb36b);display:grid;place-items:center;font-size:20px}
+.nm{font-weight:700}.sp{flex:1}
+header button{border:0;background:none;font-size:20px;padding:6px}
+#app{flex:1;display:flex;flex-direction:column;min-height:0}
+#list{flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:6px}
+.m{max-width:78%;padding:9px 13px;border-radius:18px;font-size:15px;line-height:1.35;word-wrap:break-word;animation:in .3s cubic-bezier(.2,1.4,.5,1) both}
+.me{align-self:flex-end;background:var(--me);color:#fff;border-bottom-right-radius:5px}
+.her{align-self:flex-start;background:var(--her);color:var(--herT);border-bottom-left-radius:5px;border:1px solid var(--line)}
+.big{background:none!important;border:0!important;font-size:46px;padding:0 4px}
+.t{display:block;font-size:10px;opacity:.65;margin-top:2px;text-align:right}.big .t{display:none}
+@keyframes in{from{opacity:0;transform:translateY(14px) scale(.7)}to{opacity:1;transform:none}}
+#fx{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:5}
+.p{position:absolute;bottom:-40px;left:var(--x);font-size:var(--s);animation:up var(--d) ease-out forwards}
+.p.down{bottom:auto;top:-40px;animation-name:dn}
+@keyframes up{0%{opacity:0}15%{opacity:1}100%{opacity:0;transform:translateY(-95vh) translateX(var(--w)) rotate(var(--r))}}
+@keyframes dn{0%{opacity:0}15%{opacity:1}100%{opacity:0;transform:translateY(105vh) translateX(var(--w)) rotate(var(--r))}}
+.bar{display:flex;gap:6px;padding:6px 10px 0;background:var(--card);overflow-x:auto}
+.bar button{border:0;background:none;font-size:24px;padding:4px 6px}
+form{display:flex;gap:8px;padding:8px 10px calc(10px + env(safe-area-inset-bottom,0px));background:var(--card)}
+form input{flex:1}
+.send{border:0;background:var(--me);color:#fff;width:44px;height:44px;border-radius:50%;font-size:18px}
+.toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;z-index:9}
+</style>
+</head>
+<body>
+<div id="fx"></div>
+
+<div id="login">
+  <h1>Humara Chat 💕</h1><p>Sirf hum dono ke liye</p>
+  <input id="em" type="email" placeholder="Email" autocomplete="username">
+  <input id="pw" type="password" placeholder="Password" autocomplete="current-password">
+  <button id="go">Login</button>
+  <div id="err"></div>
+</div>
+
+<div id="app" class="hide">
+  <header>
+    <div class="av">🥰</div><div class="nm">Humara Chat 💕</div><div class="sp"></div>
+    <button onclick="toast('Audio call jald aayegi 📞')" aria-label="Audio call">📞</button>
+    <button onclick="toast('Video call jald aayegi 🎥')" aria-label="Video call">🎥</button>
+    <button id="out" aria-label="Logout">🚪</button>
+  </header>
+  <div id="list"></div>
+  <div class="bar" id="bar"></div>
+  <form id="f"><input id="i" placeholder="Message likho… emoji bhejo ✨" autocomplete="off"><button class="send" aria-label="Send">➤</button></form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+const SUPABASE_URL='https://hoxkqtuheevixytvplqs.supabase.co';
+const SUPABASE_KEY='sb_publishable_Z06lWT4-c6MBlM0kHdiiEQ_ZvGsbVeg';
+const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=id=>document.getElementById(id);
+let me=null,seen=new Set(),channel=null;
+
+function toast(t){const x=document.createElement('div');x.className='toast';x.textContent=t;document.body.append(x);setTimeout(()=>x.remove(),2200)}
+const onlyEmoji=t=>/^(\p{Extended_Pictographic}|\uFE0F|\u200D|\s)+$/u.test(t)&&t.trim().length<=12;
+
+function burst(em){
+  const set=[...new Set(em)],down=set.some(e=>'😭😢🥺😞'.includes(e));
+  for(let i=0;i<Math.min(24,set.length*10);i++){
+    const p=document.createElement('span');p.className='p'+(down?' down':'');
+    p.textContent=set[i%set.length]+'\uFE0F';
+    p.style.cssText=`--x:${Math.random()*95}%;--s:${18+Math.random()*26}px;--d:${1.8+Math.random()*1.8}s;--w:${(Math.random()-.5)*90}px;--r:${(Math.random()-.5)*80}deg;animation-delay:${Math.random()*.6}s`;
+    $('fx').append(p);setTimeout(()=>p.remove(),4500);
+  }
+}
+
+function show(row,animate){
+  if(seen.has(row.id))return;seen.add(row.id);
+  const d=document.createElement('div'),big=onlyEmoji(row.body);
+  d.className='m '+(row.sender===me.id?'me':'her')+(big?' big':'');
+  d.append(document.createTextNode(row.body));
+  const s=document.createElement('span');s.className='t';
+  s.textContent=new Date(row.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  d.append(s);$('list').append(d);$('list').scrollTop=$('list').scrollHeight;
+  const em=row.body.match(/\p{Extended_Pictographic}/gu);
+  if(animate&&em)setTimeout(()=>burst(em),150);
+}
+
+async function start(user){
+  me=user;$('login').classList.add('hide');$('app').classList.remove('hide');
+  const {data,error}=await db.from('messages').select('*').order('created_at',{ascending:false}).limit(200);
+  if(error){toast('Messages load nahi hue');return}
+  data.reverse().forEach(r=>show(r,false));
+  channel=db.channel('chat').on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},p=>show(p.new,true)).subscribe();
+}
+
+$('go').onclick=async()=>{
+  $('err').textContent='';
+  const {data,error}=await db.auth.signInWithPassword({email:$('em').value.trim(),password:$('pw').value});
+  if(error){$('err').textContent='Email ya password galat hai';return}
+  start(data.user);
+};
+$('out').onclick=async()=>{await db.auth.signOut();location.reload()};
+
+$('f').onsubmit=async e=>{
+  e.preventDefault();const v=$('i').value.trim();if(!v)return;$('i').value='';
+  const {data,error}=await db.from('messages').insert({body:v}).select().single();
+  if(error){toast('Message nahi gaya, dobara try karo');$('i').value=v;return}
+  show(data,true);
+};
+
+['❤️','😘','😂','😭','😡','🔥','🎉','😴'].forEach(e=>{const b=document.createElement('button');b.type='button';b.textContent=e;b.onclick=()=>{$('i').value+=e;$('i').focus()};$('bar').append(b)});
+
+db.auth.getSession().then(({data})=>{if(data.session)start(data.session.user)});
+</script>
+</body>
+</html>
