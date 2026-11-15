@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#fff7fa" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#22141c" media="(prefers-color-scheme: dark)">
-<title> Hamara Ai </title>
+<title>Humara Chat 💕</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -49,6 +49,11 @@ header button{border:0;background:none;font-size:20px;padding:6px;color:var(--he
 form{display:flex;gap:8px;padding:8px 10px calc(10px + env(safe-area-inset-bottom,0px));background:var(--card)}
 form input{flex:1}
 .send{border:0;background:var(--me);color:#fff;width:44px;height:44px;border-radius:50%;font-size:18px}
+.shk{animation:shk .4s}
+@keyframes shk{0%,100%{transform:none}20%,60%{transform:translateX(-9px)}40%,80%{transform:translateX(9px)}}
+.pop{position:fixed;inset:0;background:#0009;display:grid;place-items:center;z-index:50}
+.pop>div{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;width:min(86%,320px);text-align:center}
+.pop button{margin-top:14px;border:0;background:var(--me);color:#fff;padding:10px 26px;border-radius:20px;font-size:15px}
 .toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;z-index:9}
 </style>
 </head>
@@ -56,8 +61,3 @@ form input{flex:1}
 <div id="fx"></div>
 
 <div id="login">
-  <h1>Hamara Ai</h1><p>Sirf hum dono ke liye</p>
-  <input id="em" type="email" placeholder="Email" autocomplete="username">
-  <input id="pw" type="password" placeholder="Password" autocomplete="current-password">
-  <button id="go">Login</button>
-  <div id="err"></div>
