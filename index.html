@@ -66,6 +66,12 @@ form input{flex:1}
 .pop{position:fixed;inset:0;background:#0009;display:grid;place-items:center;z-index:50}
 .pop>div{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;width:min(86%,320px);text-align:center}
 .pop button{margin-top:14px;border:0;background:var(--me);color:#fff;padding:10px 26px;border-radius:20px;font-size:15px}
+.ph{font-weight:700;font-size:17px;margin-bottom:8px}
+.pt{color:var(--mut);font-size:14px;line-height:1.45}
+.prow{display:flex;gap:10px;margin-top:18px}
+.prow button{flex:1;margin-top:0!important;padding:11px 10px!important}
+.ghost{background:var(--line)!important;color:var(--herT)!important}
+.danger{background:#a3283f!important}
 .toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:8px 14px;border-radius:20px;font-size:13px;z-index:9}
 </style>
 </head>
@@ -219,6 +225,18 @@ async function start(user){
   document.addEventListener('visibilitychange',receipts);
 }
 
+function ask(title,text,okText){
+  return new Promise(res=>{
+    const o=document.createElement('div');o.className='pop';
+    const b=document.createElement('div'),h=document.createElement('div'),p=document.createElement('div'),row=document.createElement('div');
+    h.className='ph';h.textContent=title;p.className='pt';p.textContent=text;row.className='prow';
+    const c=document.createElement('button'),k=document.createElement('button');
+    c.textContent='Cancel';c.className='ghost';k.textContent=okText;k.className='danger';
+    const done=v=>{o.remove();res(v)};
+    c.onclick=()=>done(false);k.onclick=()=>done(true);o.onclick=e=>{if(e.target===o)done(false)};
+    row.append(c,k);b.append(h,p,row);o.append(b);document.body.append(o);
+  });
+}
 function popup(msg){
   const o=document.createElement('div');o.className='pop';
   const b=document.createElement('div'),p=document.createElement('div'),k=document.createElement('button');
@@ -249,13 +267,13 @@ $('pw').addEventListener('keydown',e=>{if(e.key==='Enter')$('go').click()});
 $('out').onclick=async()=>{await db.auth.signOut();location.reload()};
 $('mn').onclick=e=>{e.stopPropagation();$('menu').classList.toggle('hide')};
 document.addEventListener('click',()=>$('menu').classList.add('hide'));
-$('clr').onclick=()=>{
-  if(!confirm('Chat sirf aapke phone se saaf hogi, doosre ke paas rahegi. Clear karein?'))return;
+$('clr').onclick=async()=>{
+  if(!await ask('Clear chat?','This clears the chat on your phone only. The other person will still keep their copy.','Clear'))return;
   clearedAt=new Date().toISOString();try{localStorage.setItem('clearedAt',clearedAt)}catch(e){}
   reset();
 };
 $('del').onclick=async()=>{
-  if(!confirm('Poori chat dono ke liye hamesha ke liye delete ho jaayegi. Pakka?'))return;
+  if(!await ask('Delete chat for everyone?','This permanently deletes the entire chat for both of you. This cannot be undone.','Delete'))return;
   const {error}=await db.from('messages').delete().gt('id',0);
   if(error)toast('Delete nahi hua');else reset();
 };
