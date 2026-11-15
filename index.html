@@ -61,6 +61,10 @@ form input{flex:1}
 .rxr{display:flex;justify-content:space-around;font-size:28px;margin-bottom:10px}
 #sh button{display:block;width:100%;text-align:left;background:none;border:0;color:var(--herT);font-size:16px;padding:12px 6px}
 #rb{display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--card);border-top:1px solid var(--line);font-size:13px;color:var(--mut)}
+.md img,.md video{display:block;width:230px;max-width:100%;max-height:320px;object-fit:cover;border-radius:12px;margin-bottom:4px}
+.md audio{display:block;width:230px;max-width:100%;height:40px;margin-bottom:2px}
+#rec{display:flex;justify-content:space-between;padding:8px 14px;background:var(--card);border-top:1px solid var(--line);color:#e5566f;font-size:14px}
+form button:not(.send){border:0;background:none;font-size:22px;padding:4px;color:inherit}
 .shk{animation:shk .4s}
 @keyframes shk{0%,100%{transform:none}20%,60%{transform:translateX(-9px)}40%,80%{transform:translateX(9px)}}
 .pop{position:fixed;inset:0;background:#0009;display:grid;place-items:center;z-index:50}
@@ -92,11 +96,13 @@ form input{flex:1}
     <button onclick="toast('Audio call jald aayegi 📞')" aria-label="Audio call">📞</button>
     <button onclick="toast('Video call jald aayegi 🎥')" aria-label="Video call">🎥</button>
     <button id="mn" aria-label="Menu">⋮</button>
-    <div id="menu" class="hide"><button id="clr">🧹 Chat clear (sirf mere liye)</button><button id="del">🗑️ Chat delete (dono ke liye)</button><button id="out">🚪 Logout</button></div>
+    <div id="menu" class="hide"><button id="clr">🧹 Chat clear (sirf mere liye)</button><button id="old">🧹 Purani photo/video delete (7 din+)</button><button id="del">🗑️ Chat delete (dono ke liye)</button><button id="out">🚪 Logout</button></div>
   </header>
   <div id="list"></div>
   <div id="rb" class="hide"><span id="rt" style="flex:1"></span><span id="rx">✕</span></div>
-    <form id="f"><input id="i" placeholder="Message likho… emoji bhejo ✨" autocomplete="off"><button class="send" aria-label="Send">➤</button></form>
+    <div id="rec" class="hide"><span>● <b id="rt2">0:00</b></span><span id="rcx">✕ Cancel</span></div>
+  <form id="f"><button type="button" id="at" aria-label="Photo ya video">📎</button><input id="i" placeholder="Message likho…" autocomplete="off"><button type="button" id="mic" aria-label="Voice note">🎤</button><button class="send" aria-label="Send">➤</button></form>
+  <input type="file" id="fl" accept="image/*,video/*" hidden>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -131,18 +137,32 @@ function ago(ts){
 const stText=r=>r.seen_at?'✓✓ Seen · '+ago(r.seen_at):r.delivered_at?'✓✓ Delivered · '+ago(r.delivered_at):'✓ Sent';
 const who=r=>r.sender===me.id?'Aap: ':'Unka: ';
 
+const lbl=r=>r.body||(r.media_type==='audio'?'🎤 Voice note':r.media_type==='video'?'🎥 Video':'📷 Photo');
+const urls=new Map();
+async function signed(p){
+  if(urls.has(p))return urls.get(p);
+  const {data}=await db.storage.from('media').createSignedUrl(p,86400);
+  if(data)urls.set(p,data.signedUrl);
+  return data&&data.signedUrl;
+}
+function viewImg(u){
+  const o=document.createElement('div'),i=document.createElement('img');o.className='pop';i.src=u;
+  i.style.cssText='max-width:96%;max-height:90%;border-radius:10px';o.append(i);o.onclick=()=>o.remove();document.body.append(o);
+}
+
 function build(row){
   const d=els.get(row.id);if(!d)return;
-  const mine=row.sender===me.id;
-  d.textContent='';
-  if(row.deleted){d.className='m '+(mine?'me':'her')+' del';d.textContent='🚫 Yeh message delete kiya gaya';return}
+  const mine=row.sender===me.id,cls='m '+(mine?'me':'her');
+  if(row.deleted){d.className=cls+' del';d.textContent='🚫 Yeh message delete kiya gaya';return}
+  if(row.media_type&&!row.media_path){d.className=cls+' del';d.textContent='🕒 Media removed to save space';return}
+  [...d.childNodes].forEach(n=>{if(n!==d._mw)n.remove()});
   const big=onlyEmoji(row.body)&&!row.reply_to;
-  d.className='m '+(mine?'me':'her')+(big?' big':'');
+  d.className=cls+(big?' big':'');
   if(row.reply_to){
     const p=rowsById.get(row.reply_to),q=document.createElement('div');q.className='q';
-    q.textContent=!p?'Purana message':p.deleted?'🚫 Delete kiya gaya':who(p)+p.body;d.append(q);
+    q.textContent=!p?'Purana message':p.deleted?'🚫 Delete kiya gaya':who(p)+lbl(p);d.prepend(q);
   }
-  d.append(document.createTextNode(row.body));
+  if(row.body)d.append(document.createTextNode(row.body));
   const t=document.createElement('span');t.className='t';
   t.textContent=new Date(row.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});d.append(t);
   if(mine){const s=document.createElement('span');s.className='s';s.textContent=stText(row);d.append(s)}
@@ -155,6 +175,13 @@ function show(row,animate){
   if(clearedAt&&new Date(row.created_at)<=new Date(clearedAt))return;
   seen.add(row.id);rowsById.set(row.id,row);
   const d=document.createElement('div');d.onclick=()=>sheet(row.id);
+  if(row.media_path){
+    const mw=document.createElement('div'),el=document.createElement(row.media_type==='image'?'img':row.media_type==='video'?'video':'audio');
+    mw.className='md';mw.onclick=e=>e.stopPropagation();
+    if(row.media_type==='image')el.onclick=()=>viewImg(el.src);else{el.controls=true;el.preload='metadata'}
+    mw.append(el);d._mw=mw;d.append(mw);
+    signed(row.media_path).then(u=>{if(u)el.src=u});
+  }
   els.set(row.id,d);build(row);
   $('list').append(d);$('list').scrollTop=$('list').scrollHeight;
   const em=!row.deleted&&row.body.match(/\p{Extended_Pictographic}/gu);
@@ -168,8 +195,8 @@ function sheet(id){
   ['❤️','😂','😮','😢','👍','🙏'].forEach(e=>{const s=document.createElement('span');s.textContent=e;s.onclick=()=>{react(r,e);o.remove()};rx.append(s)});
   box.append(rx);
   const item=(txt,fn)=>{const b=document.createElement('button');b.textContent=txt;b.onclick=()=>{fn();o.remove()};box.append(b)};
-  item('↩️ Reply',()=>{rep=r;$('rt').textContent='↩️ '+who(r)+r.body;$('rb').classList.remove('hide');$('i').focus()});
-  item('📋 Copy',()=>{if(navigator.clipboard)navigator.clipboard.writeText(r.body).then(()=>toast('Copy ho gaya'),()=>{})});
+  item('↩️ Reply',()=>{rep=r;$('rt').textContent='↩️ '+who(r)+lbl(r);$('rb').classList.remove('hide');$('i').focus()});
+  if(r.body)item('📋 Copy',()=>{if(navigator.clipboard)navigator.clipboard.writeText(r.body).then(()=>toast('Copy ho gaya'),()=>{})});
   if(r.sender===me.id)item('🗑️ Sabke liye delete',()=>del(r));
   o.append(box);o.onclick=e=>{if(e.target===o)o.remove()};document.body.append(o);
 }
@@ -182,9 +209,10 @@ async function react(r,e){
   if(error)toast('Reaction nahi gaya');
 }
 async function del(r){
-  const {error}=await db.from('messages').update({deleted:true,body:''}).eq('id',r.id);
+  if(r.media_path)await db.storage.from('media').remove([r.media_path]);
+  const {error}=await db.from('messages').update({deleted:true,body:'',media_path:null}).eq('id',r.id);
   if(error){toast('Delete nahi hua');return}
-  r.deleted=true;r.body='';build(r);
+  r.deleted=true;r.body='';r.media_path=null;build(r);
 }
 
 async function receipts(){
@@ -221,7 +249,7 @@ async function start(user){
     .on('broadcast',{event:'typing'},()=>{$('st').textContent='typing…';$('st').className='st';clearTimeout(typingT);typingT=setTimeout(presence,2500)})
     .on('presence',{event:'sync'},presence)
     .subscribe(s=>{if(s==='SUBSCRIBED')ch.track({at:Date.now()})});
-  setInterval(()=>rowsById.forEach(build),30000);
+  setInterval(()=>rowsById.forEach(r=>{const d=els.get(r.id),x=d&&d.querySelector('.s');if(x)x.textContent=stText(r)}),30000);
   document.addEventListener('visibilitychange',receipts);
 }
 
@@ -274,6 +302,8 @@ $('clr').onclick=async()=>{
 };
 $('del').onclick=async()=>{
   if(!await ask('Delete chat for everyone?','This permanently deletes the entire chat for both of you. This cannot be undone.','Delete'))return;
+  const {data:ms}=await db.from('messages').select('media_path').not('media_path','is',null);
+  if(ms&&ms.length)await db.storage.from('media').remove(ms.map(m=>m.media_path));
   const {error}=await db.from('messages').delete().gt('id',0);
   if(error)toast('Delete nahi hua');else reset();
 };
@@ -292,12 +322,6 @@ $('f').onsubmit=async e=>{
 };
 
 
-if(window.visualViewport){const vv=visualViewport;
-  const fit=()=>{document.body.style.height=vv.height+'px';scrollTo(0,0);const l=$('list');l.scrollTop=l.scrollHeight};
-  vv.addEventListener('resize',fit);vv.addEventListener('scroll',()=>scrollTo(0,0));
-}
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
-db.auth.getSession().then(({data})=>{if(data.session)start(data.session.user)});
-</script>
-</body>
-</html>
+async function shrink(f){
+  const bmp=await createImageBitmap(f),k=Math.min(1,1280/Math.max(bmp.width,bmp.height));
+  const c=document.createElement('canvas');c.width=Math.round(bmp.width*k);c.height=Math.round(
