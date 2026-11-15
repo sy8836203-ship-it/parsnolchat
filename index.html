@@ -61,3 +61,159 @@ form input{flex:1}
 <div id="fx"></div>
 
 <div id="login">
+  <h1>Hamara Ai 💕</h1><p>Sirf hum dono ke liye</p>
+  <input id="em" type="email" placeholder="Email" autocomplete="username">
+  <input id="pw" type="password" placeholder="Password" autocomplete="current-password">
+  <button id="go">Login</button>
+  <div id="err"></div>
+</div>
+
+<div id="app" class="hide">
+  <header>
+    <div class="av">🥰</div><div class="nm">Hamara Ai 💕</div><div class="sp"></div>
+    <button onclick="toast('Audio call jald aayegi 📞')" aria-label="Audio call">📞</button>
+    <button onclick="toast('Video call jald aayegi 🎥')" aria-label="Video call">🎥</button>
+    <button id="mn" aria-label="Menu">⋮</button>
+    <div id="menu" class="hide"><button id="clr">🧹 Chat clear (sirf mere liye)</button><button id="del">🗑️ Chat delete (dono ke liye)</button><button id="out">🚪 Logout</button></div>
+  </header>
+  <div id="list"></div>
+  <div class="bar" id="bar"></div>
+  <form id="f"><input id="i" placeholder="Message likho… emoji bhejo ✨" autocomplete="off"><button class="send" aria-label="Send">➤</button></form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+const SUPABASE_URL='https://hoxkqtuheevixytvplqs.supabase.co';
+const SUPABASE_KEY='sb_publishable_Z06lWT4-c6MBlM0kHdiiEQ_ZvGsbVeg';
+const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=id=>document.getElementById(id);
+let me=null,seen=new Set(),els=new Map(),rowsById=new Map(),clearedAt=null;
+try{clearedAt=localStorage.getItem('clearedAt')}catch(e){}
+
+function toast(t){const x=document.createElement('div');x.className='toast';x.textContent=t;document.body.append(x);setTimeout(()=>x.remove(),2200)}
+const onlyEmoji=t=>/^(\p{Extended_Pictographic}|\uFE0F|\u200D|\s)+$/u.test(t)&&t.trim().length<=12;
+
+function burst(em){
+  const set=[...new Set(em)],down=set.some(e=>'😭😢🥺😞'.includes(e));
+  for(let i=0;i<Math.min(24,set.length*10);i++){
+    const p=document.createElement('span');p.className='p'+(down?' down':'');
+    p.textContent=set[i%set.length]+'\uFE0F';
+    p.style.cssText=`--x:${Math.random()*95}%;--s:${18+Math.random()*26}px;--d:${1.8+Math.random()*1.8}s;--w:${(Math.random()-.5)*90}px;--r:${(Math.random()-.5)*80}deg;animation-delay:${Math.random()*.6}s`;
+    $('fx').append(p);setTimeout(()=>p.remove(),4500);
+  }
+}
+
+function ago(ts){
+  const s=Math.max(0,(Date.now()-new Date(ts))/1000);
+  if(s<60)return'abhi abhi';
+  const m=Math.floor(s/60);if(m<60)return m+' min pehle';
+  const h=Math.floor(m/60);if(h<24)return h+' ghante pehle';
+  return Math.floor(h/24)+' din pehle';
+}
+const stText=r=>r.seen_at?'✓✓ Seen · '+ago(r.seen_at):r.delivered_at?'✓✓ Delivered · '+ago(r.delivered_at):'✓ Sent';
+function paint(r){const e=els.get(r.id);if(e&&e.s)e.s.textContent=stText(r)}
+
+function show(row,animate){
+  if(seen.has(row.id))return;
+  if(clearedAt&&new Date(row.created_at)<=new Date(clearedAt))return;
+  seen.add(row.id);rowsById.set(row.id,row);
+  const mine=row.sender===me.id,big=onlyEmoji(row.body),d=document.createElement('div');
+  d.className='m '+(mine?'me':'her')+(big?' big':'');
+  d.append(document.createTextNode(row.body));
+  const t=document.createElement('span');t.className='t';
+  t.textContent=new Date(row.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  d.append(t);
+  let s=null;
+  if(mine){s=document.createElement('span');s.className='s';d.append(s)}
+  els.set(row.id,{s});paint(row);
+  $('list').append(d);$('list').scrollTop=$('list').scrollHeight;
+  const em=row.body.match(/\p{Extended_Pictographic}/gu);
+  if(animate&&em)setTimeout(()=>burst(em),150);
+}
+
+async function receipts(){
+  if(!me)return;
+  const now=new Date().toISOString();
+  const inc=[...rowsById.values()].filter(r=>r.sender!==me.id);
+  const dl=inc.filter(r=>!r.delivered_at),
+        sn=document.visibilityState==='visible'?inc.filter(r=>!r.seen_at):[];
+  dl.forEach(r=>r.delivered_at=now);sn.forEach(r=>r.seen_at=now);
+  if(dl.length)await db.from('messages').update({delivered_at:now}).in('id',dl.map(r=>r.id));
+  if(sn.length)await db.from('messages').update({seen_at:now}).in('id',sn.map(r=>r.id));
+}
+
+function reset(){$('list').innerHTML='';seen.clear();els.clear();rowsById.clear()}
+
+async function load(){
+  const {data,error}=await db.from('messages').select('*').order('created_at',{ascending:false}).limit(200);
+  if(error){toast('Messages load nahi hue');return}
+  data.reverse().forEach(r=>show(r,false));receipts();
+}
+
+async function start(user){
+  me=user;$('login').classList.add('hide');$('app').classList.remove('hide');
+  await load();
+  db.channel('chat')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},p=>{show(p.new,true);receipts()})
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'messages'},p=>{if(!rowsById.has(p.new.id))return;rowsById.set(p.new.id,p.new);paint(p.new)})
+    .on('postgres_changes',{event:'DELETE',schema:'public',table:'messages'},()=>{reset();load()})
+    .subscribe();
+  setInterval(()=>rowsById.forEach(paint),30000);
+  document.addEventListener('visibilitychange',receipts);
+}
+
+function popup(msg){
+  const o=document.createElement('div');o.className='pop';
+  const b=document.createElement('div'),p=document.createElement('div'),k=document.createElement('button');
+  p.textContent='⚠️ '+msg;k.textContent='Theek hai';k.onclick=()=>o.remove();
+  b.append(p,k);o.append(b);o.onclick=e=>{if(e.target===o)o.remove()};document.body.append(o);
+}
+function fail(e){
+  const m=(e&&e.message)||String(e);
+  let msg='Login nahi hua: '+m;
+  if(/invalid login/i.test(m))msg='Email ya password galat hai';
+  else if(/confirm/i.test(m))msg='Email confirm nahi hai';
+  else if(/fetch|network/i.test(m))msg='Internet ya server dikkat, dobara try karo';
+  $('err').textContent=msg;
+  const b=$('go');b.classList.remove('shk');void b.offsetWidth;b.classList.add('shk');
+  if(navigator.vibrate)navigator.vibrate([80,40,80]);
+  popup(msg);
+}
+$('go').onclick=async()=>{
+  const b=$('go');b.disabled=true;$('err').textContent='';
+  try{
+    const {data,error}=await db.auth.signInWithPassword({email:$('em').value.trim(),password:$('pw').value});
+    if(error)throw error;
+    await start(data.user);
+  }catch(e){fail(e)}
+  b.disabled=false;
+};
+$('pw').addEventListener('keydown',e=>{if(e.key==='Enter')$('go').click()});
+$('out').onclick=async()=>{await db.auth.signOut();location.reload()};
+$('mn').onclick=e=>{e.stopPropagation();$('menu').classList.toggle('hide')};
+document.addEventListener('click',()=>$('menu').classList.add('hide'));
+$('clr').onclick=()=>{
+  if(!confirm('Chat sirf aapke phone se saaf hogi, doosre ke paas rahegi. Clear karein?'))return;
+  clearedAt=new Date().toISOString();try{localStorage.setItem('clearedAt',clearedAt)}catch(e){}
+  reset();
+};
+$('del').onclick=async()=>{
+  if(!confirm('Poori chat dono ke liye hamesha ke liye delete ho jaayegi. Pakka?'))return;
+  const {error}=await db.from('messages').delete().gt('id',0);
+  if(error)toast('Delete nahi hua');else reset();
+};
+
+$('f').onsubmit=async e=>{
+  e.preventDefault();const v=$('i').value.trim();if(!v)return;$('i').value='';
+  const {data,error}=await db.from('messages').insert({body:v}).select().single();
+  if(error){toast('Message nahi gaya, dobara try karo');$('i').value=v;return}
+  show(data,true);
+};
+
+['❤️','😘','😂','😭','😡','🔥','🎉','😴'].forEach(e=>{const b=document.createElement('button');b.type='button';b.textContent=e;b.onclick=()=>{$('i').value+=e;$('i').focus()};$('bar').append(b)});
+
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+db.auth.getSession().then(({data})=>{if(data.session)start(data.session.user)});
+</script>
+</body>
+</html>
