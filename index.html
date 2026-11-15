@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#ff4d8d">
 <title>Humara Chat 💕</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
 :root{--bg:#fff7fa;--card:#fff;--me:#ff4d8d;--her:#fff;--herT:#2a1a22;--mut:#8a7480;--line:#f3dce5}
 @media(prefers-color-scheme:dark){:root{--bg:#150d12;--card:#22141c;--her:#2c1b25;--herT:#f6e9ef;--mut:#a58a97;--line:#33202a}}
@@ -55,76 +58,3 @@ form input{flex:1}
 </div>
 
 <div id="app" class="hide">
-  <header>
-    <div class="av">🥰</div><div class="nm">Humara Chat 💕</div><div class="sp"></div>
-    <button onclick="toast('Audio call jald aayegi 📞')" aria-label="Audio call">📞</button>
-    <button onclick="toast('Video call jald aayegi 🎥')" aria-label="Video call">🎥</button>
-    <button id="out" aria-label="Logout">🚪</button>
-  </header>
-  <div id="list"></div>
-  <div class="bar" id="bar"></div>
-  <form id="f"><input id="i" placeholder="Message likho… emoji bhejo ✨" autocomplete="off"><button class="send" aria-label="Send">➤</button></form>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script>
-const SUPABASE_URL='https://hoxkqtuheevixytvplqs.supabase.co';
-const SUPABASE_KEY='sb_publishable_Z06lWT4-c6MBlM0kHdiiEQ_ZvGsbVeg';
-const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-const $=id=>document.getElementById(id);
-let me=null,seen=new Set(),channel=null;
-
-function toast(t){const x=document.createElement('div');x.className='toast';x.textContent=t;document.body.append(x);setTimeout(()=>x.remove(),2200)}
-const onlyEmoji=t=>/^(\p{Extended_Pictographic}|\uFE0F|\u200D|\s)+$/u.test(t)&&t.trim().length<=12;
-
-function burst(em){
-  const set=[...new Set(em)],down=set.some(e=>'😭😢🥺😞'.includes(e));
-  for(let i=0;i<Math.min(24,set.length*10);i++){
-    const p=document.createElement('span');p.className='p'+(down?' down':'');
-    p.textContent=set[i%set.length]+'\uFE0F';
-    p.style.cssText=`--x:${Math.random()*95}%;--s:${18+Math.random()*26}px;--d:${1.8+Math.random()*1.8}s;--w:${(Math.random()-.5)*90}px;--r:${(Math.random()-.5)*80}deg;animation-delay:${Math.random()*.6}s`;
-    $('fx').append(p);setTimeout(()=>p.remove(),4500);
-  }
-}
-
-function show(row,animate){
-  if(seen.has(row.id))return;seen.add(row.id);
-  const d=document.createElement('div'),big=onlyEmoji(row.body);
-  d.className='m '+(row.sender===me.id?'me':'her')+(big?' big':'');
-  d.append(document.createTextNode(row.body));
-  const s=document.createElement('span');s.className='t';
-  s.textContent=new Date(row.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-  d.append(s);$('list').append(d);$('list').scrollTop=$('list').scrollHeight;
-  const em=row.body.match(/\p{Extended_Pictographic}/gu);
-  if(animate&&em)setTimeout(()=>burst(em),150);
-}
-
-async function start(user){
-  me=user;$('login').classList.add('hide');$('app').classList.remove('hide');
-  const {data,error}=await db.from('messages').select('*').order('created_at',{ascending:false}).limit(200);
-  if(error){toast('Messages load nahi hue');return}
-  data.reverse().forEach(r=>show(r,false));
-  channel=db.channel('chat').on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},p=>show(p.new,true)).subscribe();
-}
-
-$('go').onclick=async()=>{
-  $('err').textContent='';
-  const {data,error}=await db.auth.signInWithPassword({email:$('em').value.trim(),password:$('pw').value});
-  if(error){$('err').textContent='Email ya password galat hai';return}
-  start(data.user);
-};
-$('out').onclick=async()=>{await db.auth.signOut();location.reload()};
-
-$('f').onsubmit=async e=>{
-  e.preventDefault();const v=$('i').value.trim();if(!v)return;$('i').value='';
-  const {data,error}=await db.from('messages').insert({body:v}).select().single();
-  if(error){toast('Message nahi gaya, dobara try karo');$('i').value=v;return}
-  show(data,true);
-};
-
-['❤️','😘','😂','😭','😡','🔥','🎉','😴'].forEach(e=>{const b=document.createElement('button');b.type='button';b.textContent=e;b.onclick=()=>{$('i').value+=e;$('i').focus()};$('bar').append(b)});
-
-db.auth.getSession().then(({data})=>{if(data.session)start(data.session.user)});
-</script>
-</body>
-</html>
